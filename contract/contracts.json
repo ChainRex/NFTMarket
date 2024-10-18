@@ -1,0 +1,17 @@
+[
+    {
+        "name": "NFTMarket",
+        "address": "0x7c4d5974132433D3d363BD3636E23bb5A2a4F648",
+        "chainId": 80002
+    },
+    {
+        "name": "Vault",
+        "address": "0x118276cBd810EdE16aC0f9621Af425e04e19870a",
+        "chainId": 80002
+    },
+    {
+        "name": "RexToken",
+        "address": "0xFDFF13B8b4C3DD752A57fEC5dD4DC9E2f23EDE64",
+        "chainId": 80002
+    }
+]

@@ -1,0 +1,12 @@
+{
+    "title": "Rex NFT",
+    "description": "Rex NFT",
+    "image": "ipfs://...",
+    "attributes": [
+        {
+            "trait_type": "昵称",
+            "value": "Midori"
+        }
+    ],
+    "version": "1"
+}
