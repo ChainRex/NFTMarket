@@ -8,6 +8,6 @@ remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/"
 ]
 
-fs_permissions = [{ access = "read-write", path = "../web/src/contracts"},{ access = "read", path = "./out" }]
+fs_permissions = [{ access = "read-write", path = "../web/src/contracts"},{ access = "read", path = "./out" },{ access = "read-write", path = "../backend/contracts" }]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

@@ -5,6 +5,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {NFT} from "./NFT.sol";
+
 contract NFTMarket {
     // 交易对
     struct Order {
@@ -19,6 +20,23 @@ contract NFTMarket {
     // 交易对列表
     Order[] public orders;
 
+    // 事件定义
+    event OrderCreated(
+        uint256 indexed orderId,
+        address indexed nft,
+        uint256 indexed tokenId,
+        address token,
+        uint256 price,
+        address seller
+    );
+    event OrderCancelled(uint256 indexed orderId);
+    event OrderFulfilled(uint256 indexed orderId, address buyer);
+    event NFTContractDeployed(
+        address indexed nftAddress,
+        string name,
+        string symbol
+    );
+
     // 创建交易对
     function createOrder(
         address nft,
@@ -27,18 +45,23 @@ contract NFTMarket {
         uint256 price
     ) public {
         require(price > 0, "Invalid price");
-        // 检查是否approve
         require(
             IERC721(nft).getApproved(tokenId) == address(this) ||
                 IERC721(nft).isApprovedForAll(msg.sender, address(this)),
             "Not approved"
         );
+        uint256 orderId = orders.length;
         orders.push(Order(nft, tokenId, token, price, msg.sender, 0));
+        emit OrderCreated(orderId, nft, tokenId, token, price, msg.sender);
     }
 
     // 取消交易对
     function cancelOrder(uint256 index) public {
+        require(index < orders.length, "Order does not exist");
+        require(orders[index].seller == msg.sender, "Not the seller");
+        require(orders[index].status == 0, "Order is not active");
         orders[index].status = 2;
+        emit OrderCancelled(index);
     }
 
     // 购买NFT
@@ -87,6 +110,7 @@ contract NFTMarket {
             )
         {
             order.status = 1;
+            emit OrderFulfilled(index, msg.sender);
         } catch {
             revert("NFT transfer failed");
         }
@@ -100,25 +124,14 @@ contract NFTMarket {
         return orders;
     }
 
-    // 新增: 部署NFT合约的事件
-    event NFTContractDeployed(
-        address indexed nftAddress,
-        string name,
-        string symbol
-    );
-
-    // 新增: 部署NFT合约的函数
+    // 部署NFT合约的函数
     function deployNFTContract(
         string memory name,
         string memory symbol,
         string memory tokenIconURI
     ) public returns (address) {
-        // 创建新的NFT合约
         NFT newNFTContract = new NFT(name, symbol, tokenIconURI);
-
-        // 发出事件
         emit NFTContractDeployed(address(newNFTContract), name, symbol);
-
         return address(newNFTContract);
     }
 }

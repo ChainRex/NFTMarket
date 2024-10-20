@@ -14,22 +14,27 @@ contract DeployNFTMarket is Script {
 
         // 保存合约地址
         string
-            memory addressFile = "../web/src/contracts/NFTMarket-address.json";
-        vm.writeJson(
-            string(
-                abi.encodePacked(
-                    '{"address": "',
-                    vm.toString(address(nftMarket)),
-                    '"}'
-                )
-            ),
-            addressFile
+            memory webAddressFile = "../web/src/contracts/NFTMarket-address.json";
+        string
+            memory backendAddressFile = "../backend/contracts/NFTMarket-address.json";
+        string memory addressJson = string(
+            abi.encodePacked(
+                '{"address": "',
+                vm.toString(address(nftMarket)),
+                '"}'
+            )
         );
+        vm.writeJson(addressJson, webAddressFile);
+        vm.writeJson(addressJson, backendAddressFile);
 
         // 保存合约 ABI
-        string memory abiFile = "../web/src/contracts/NFTMarket-abi.json";
+        string memory webAbiFile = "../web/src/contracts/NFTMarket-abi.json";
+        string
+            memory backendAbiFile = "../backend/contracts/NFTMarket-abi.json";
         string memory ABI = vm.readFile("out/NFTMarket.sol/NFTMarket.json");
-        vm.writeFile(abiFile, ABI);
+        vm.writeFile(webAbiFile, ABI);
+        vm.writeFile(backendAbiFile, ABI);
+
         return nftMarket;
     }
 }

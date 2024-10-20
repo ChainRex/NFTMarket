@@ -4,7 +4,7 @@
     <el-row v-if="!loading && !error" :gutter="20">
       <el-col :span="6" v-for="(collection, index) in collections" :key="index">
         <el-card :body-style="{ padding: '0px' }" shadow="hover" class="collection-card">
-          <router-link :to="`/collection/${collection.address}`" class="collection-link">
+          <router-link :to="`/nft/${collection.address}`" class="collection-link">
             <img :src="collection.imageUrl" class="image" :alt="collection.name">
             <div class="collection-info">
               <span class="collection-name">{{ collection.name }}</span>

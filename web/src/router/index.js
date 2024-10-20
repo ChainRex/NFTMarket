@@ -11,7 +11,7 @@ const routes = [
         component: HomePage
     },
     {
-        path: '/collection/:address',
+        path: '/nft/:address',
         name: 'CollectionDetail',
         component: NFTCollectionDetail
     },
