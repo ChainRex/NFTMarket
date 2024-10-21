@@ -78,13 +78,30 @@ func (uc *MarketUseCase) Close() {
 }
 
 func (uc *MarketUseCase) GetOrderByID(id uint) (*domain.Order, error) {
-	return uc.repo.GetOrderByID(id)
+	return uc.repo.GetOrderByID(id + 1)
+}
+
+func (uc *MarketUseCase) GetAllOrders() ([]domain.Order, error) {
+	return uc.repo.GetAllOrders()
 }
 
 func (uc *MarketUseCase) InitializeOrders() error {
-	// 只清空orders表
+	// 清空 orders 表
 	if err := uc.repo.ClearOrders(); err != nil {
-		return fmt.Errorf("清空orders表失败: %w", err)
+		return fmt.Errorf("清空 orders 表失败: %w", err)
+	}
+
+	// 清空 NFTs 和 NFT 属性表，但保留 NFT 集合表
+	if err := uc.nftRepo.ClearNFTs(); err != nil {
+		return fmt.Errorf("清空 NFTs 表失败: %w", err)
+	}
+	if err := uc.nftRepo.ClearNFTAttributes(); err != nil {
+		return fmt.Errorf("清空 NFT 属性表失败: %w", err)
+	}
+
+	// 清空事件转移表
+	if err := uc.nftRepo.ClearNFTTransferEvents(); err != nil {
+		return fmt.Errorf("清空 NFT 转移事件表失败: %w", err)
 	}
 
 	// 从合约获取订单
@@ -106,6 +123,17 @@ func (uc *MarketUseCase) InitializeOrders() error {
 		nftContracts[order.NFTContractAddress] = true
 	}
 
+	// 获取现有的 NFT 集合
+	existingCollections, err := uc.nftRepo.GetAllCollections()
+	if err != nil {
+		return fmt.Errorf("获取现有 NFT 集合失败: %w", err)
+	}
+
+	// 将现有集合添加到 nftContracts 中
+	for _, collection := range existingCollections {
+		nftContracts[collection.ContractAddress] = true
+	}
+
 	// 初始化每个NFT合约
 	for contractAddress := range nftContracts {
 		// 初始化NFT合约
@@ -116,6 +144,10 @@ func (uc *MarketUseCase) InitializeOrders() error {
 	}
 
 	return nil
+}
+
+func (uc *MarketUseCase) GetOrderByNFT(contractAddress string, tokenID uint) (*domain.Order, error) {
+	return uc.repo.GetOrderByNFT(contractAddress, tokenID)
 }
 
 // 定义事件签名常量

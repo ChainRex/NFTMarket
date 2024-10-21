@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	github.com/ethereum/go-ethereum v1.14.11
+	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.12

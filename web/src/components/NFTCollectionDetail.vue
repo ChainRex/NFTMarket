@@ -10,7 +10,7 @@
             <el-skeleton-item variant="text" style="width: 150px;" />
           </template>
           <template #default>
-            {{ collection.name || 'NFT 系列' }}
+            {{ collection.Name || 'NFT 系列' }}
           </template>
         </el-skeleton>
       </template>
@@ -33,24 +33,24 @@
       <template #default>
         <el-row class="collection-header">
           <el-col :span="4">
-            <el-avatar :size="100" :src="collection.iconUrl"></el-avatar>
+            <el-avatar :size="100" :src="collection.TokenIconURI"></el-avatar>
           </el-col>
           <el-col :span="20">
             <h1>
-              <a :href="getExplorerUrl('token', collection.address)" target="_blank" rel="noopener noreferrer">
-                {{ collection.name }}
+              <a :href="getExplorerUrl('token', collection.ContractAddress)" target="_blank" rel="noopener noreferrer">
+                {{ collection.Name }}
               </a>
             </h1>
             <p class="contract-address">
               合约地址: 
-              <a :href="getExplorerUrl('address', collection.address)" target="_blank" rel="noopener noreferrer">
-                {{ collection.address }}
+              <a :href="getExplorerUrl('address', collection.ContractAddress)" target="_blank" rel="noopener noreferrer">
+                {{ collection.ContractAddress }}
               </a>
-              <el-button class="copy-button" @click="copyAddress(collection.address)" type="text">
+              <el-button class="copy-button" @click="copyAddress(collection.ContractAddress)" type="text">
                 <el-icon><DocumentCopy /></el-icon>
               </el-button>
             </p>
-            <p v-if="collection.floorPrice && collection.tokenSymbol">地板价: {{ formatPrice(collection.floorPrice) }} {{ collection.tokenSymbol }}</p>
+            <p>代号: {{ collection.Symbol }}</p>
           </el-col>
         </el-row>
       </template>
@@ -77,15 +77,15 @@
       </template>
       
       <template v-else>
-        <el-col :span="6" v-for="nft in nfts" :key="nft.id">
-          <router-link :to="`/nft/${collection.address}/${nft.id}`" class="nft-link">
+        <el-col :span="6" v-for="nft in nfts" :key="nft.TokenID">
+          <router-link :to="`/nft/${collection.ContractAddress}/${nft.TokenID}`" class="nft-link">
             <el-card :body-style="{ padding: '0px' }" shadow="hover">
-              <img :src="nft.imageUrl" class="image" :alt="nft.name">
+              <img :src="nft.Image" class="image" :alt="nft.Name">
               <div style="padding: 14px;">
-                <span>{{ collection.name }} #{{ nft.id }} - {{ nft.name }}</span>
+                <span>{{ collection.Name }} #{{ nft.TokenID }} - {{ nft.Name }}</span>
                 <div class="bottom">
-                  <span v-if="nft.price">{{ formatPrice(nft.price) }} {{ collection.tokenSymbol }}</span>
-                  <span v-else>&nbsp;</span>
+                  <span v-if="nft.price && nft.orderStatus === 0" class="price">{{ formatPrice(nft.price) }} {{ nft.tokenSymbol }}</span>
+                  <span v-else class="not-for-sale">暂无出售</span>
                 </div>
               </div>
             </el-card>
@@ -99,13 +99,13 @@
 <script>
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex';
 import { ethers } from 'ethers';
 import { ElSkeleton, ElSkeletonItem, ElMessage } from 'element-plus';
 import { Back, DocumentCopy } from '@element-plus/icons-vue';
-import { getNFTImageUrl, getTokenInfo, getNFTName, getNFTTokenIconURI, getIPFSUrl } from '../utils/nftUtils';
-import NFTABI from '../contracts/NFT.json';
-import { getProvider } from '../utils/contract';
+import axios from 'axios';
+import { getTokenInfo } from '../utils/nftUtils'; // 确保导入这个函数
+
+const API_BASE_URL = 'http://localhost:8081/api';
 
 export default {
   components: {
@@ -117,7 +117,6 @@ export default {
   setup() {
     const route = useRoute();
     const router = useRouter();
-    const store = useStore();
     const collection = ref({});
     const nfts = ref([]);
     const loading = ref(true);
@@ -126,80 +125,46 @@ export default {
       try {
         loading.value = true;
         const collectionAddress = route.params.address;
-        const provider = await getProvider();
-        const nftContract = new ethers.Contract(collectionAddress, NFTABI.abi, provider);
         
-        const [rawOrders, name, tokenIconURI, tokenURIList] = await Promise.all([
-          store.dispatch("fetchOrders"),
-          getNFTName(collectionAddress),
-          getNFTTokenIconURI(collectionAddress),
-          nftContract.getTokenURIList()
-        ]);
+        // 从后端获取集合详情
+        const response = await axios.get(`${API_BASE_URL}/nft/${collectionAddress}`);
+        const data = response.data;
 
-        const iconUrl = getIPFSUrl(tokenIconURI);
+        collection.value = data.collection;
+        nfts.value = data.nfts;
 
-        collection.value = {
-          address: collectionAddress,
-          name,
-          iconUrl,
-          floorPrice: ethers.constants.MaxUint256,
-          tokenSymbol: ''
-        };
-
-        const nftPromises = tokenURIList.map(async (tokenURI, index) => {
-          const [metadata, imageUrl] = await Promise.all([
-            fetchMetadata(tokenURI),
-            getNFTImageUrl(collectionAddress, index)
-          ]);
-
-          const order = rawOrders.find(o => 
-            o.nft === collectionAddress && 
-            ethers.BigNumber.from(o.tokenId).eq(ethers.BigNumber.from(index)) &&
-            o.status._hex === '0x00'
-          );
-
-          if (order && order.price) {
-            const price = ethers.BigNumber.from(order.price);
-            if (price.lt(collection.value.floorPrice)) {
-              collection.value.floorPrice = price;
+        // 获取每个 NFT 的订单信息
+        await Promise.all(nfts.value.map(async (nft) => {
+          try {
+            const orderResponse = await axios.get(`${API_BASE_URL}/order/${collectionAddress}/${nft.TokenID}`);
+            const orderData = orderResponse.data;
+            if (orderData && !orderData.error) {
+              const tokenInfo = await getTokenInfo(orderData.TokenAddress);
+              nft.price = orderData.Price;
+              nft.tokenSymbol = tokenInfo.symbol;
+              nft.orderStatus = orderData.Status;
+            } else {
+              nft.price = null;
+              nft.tokenSymbol = null;
+              nft.orderStatus = null;
             }
-            if (!collection.value.tokenSymbol) {
-              const tokenInfo = await getTokenInfo(order.token);
-              collection.value.tokenSymbol = tokenInfo.symbol;
+          } catch (error) {
+            if (error.response && error.response.data && error.response.data.error === "订单未找到") {
+              console.log(`NFT #${nft.TokenID} 当前没有出售`);
+              nft.price = null;
+              nft.tokenSymbol = null;
+              nft.orderStatus = null;
+            } else {
+              console.error(`获取 NFT #${nft.TokenID} 订单信息失败:`, error);
             }
           }
-
-          return {
-            id: index,
-            name: metadata.name,
-            imageUrl: imageUrl,
-            price: order ? order.price : null
-          };
-        });
-
-        nfts.value = await Promise.all(nftPromises);
-
-        if (collection.value.floorPrice.eq(ethers.constants.MaxUint256)) {
-          collection.value.floorPrice = null;
-        }
+        }));
 
       } catch (error) {
         console.error('获取集合详情失败:', error);
+        ElMessage.error('获取集合详情失败: ' + error.message);
       } finally {
         loading.value = false;
-      }
-    };
-
-    const fetchMetadata = async (tokenURI) => {
-      try {
-        const response = await fetch(getIPFSUrl(tokenURI));
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('获取元数据失败:', error);
-        return { name: 'Unknown' };
       }
     };
 
@@ -214,7 +179,7 @@ export default {
     };
 
     const goBack = () => {
-      router.push('/');
+      router.back();
     };
 
     const getExplorerUrl = (type, address) => {

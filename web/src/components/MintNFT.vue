@@ -142,7 +142,9 @@ import { initContract, deployNFTContract as deployNewNFTContract, createOrderWit
 import { getProvider } from '../utils/contract';
 import { useStore } from 'vuex'; // 导入 useStore
 import { getNFTName, getNFTTokenIconURI, getIPFSUrl } from '../utils/nftUtils';
-import { getOrders } from '../utils/contract';
+import axios from 'axios'; // 确保导入了 axios
+
+const API_BASE_URL = 'http://localhost:8081/api'; // 添加 API 基础 URL
 
 export default {
   name: 'MintNFT',
@@ -429,37 +431,17 @@ export default {
 
     const fetchNFTCollections = async () => {
       try {
-        await initContract();
-        const rawOrders = await getOrders();
-        
-        if (!rawOrders || !Array.isArray(rawOrders)) {
-          throw new Error('获取到的订单数据无效');
-        }
+        const response = await axios.get(`${API_BASE_URL}/nft`);
+        const allCollections = response.data;
 
-        const uniqueNFTAddresses = [...new Set(rawOrders.map(order => order.nft))];
-
-        const collectionPromises = uniqueNFTAddresses.map(async (nftAddress) => {
-          try {
-            const [name, tokenIconURI] = await Promise.all([
-              getNFTName(nftAddress),
-              getNFTTokenIconURI(nftAddress)
-            ]);
-
-            return {
-              address: nftAddress,
-              name,
-              iconUrl: getIPFSUrl(tokenIconURI)
-            };
-          } catch (error) {
-            console.error('处理 NFT 系列时出错:', error, nftAddress);
-            return null;
-          }
-        });
-
-        const collectionResults = await Promise.all(collectionPromises);
-        nftCollections.value = collectionResults.filter(collection => collection !== null);
+        nftCollections.value = allCollections.map(collection => ({
+          address: collection.ContractAddress,
+          name: collection.Name,
+          iconUrl: getIPFSUrl(collection.TokenIconURI)
+        }));
       } catch (error) {
         console.error('获取 NFT 系列失败:', error);
+        ElMessage.error('获取 NFT 系列失败: ' + error.message);
       }
     };
 
@@ -501,6 +483,7 @@ export default {
       selectCollection,
       hideRecommendationsDelayed,
       shortenAddress,
+      fetchNFTCollections,
     };
   }
 };
@@ -698,3 +681,4 @@ export default {
   color: #909399;
 }
 </style>
+

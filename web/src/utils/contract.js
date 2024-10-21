@@ -3,6 +3,7 @@ import contractAddress from '../contracts/NFTMarket-address.json';
 import contractABI from '../contracts/NFTMarket-abi.json';
 import { ElMessage } from 'element-plus';
 import { handleGlobalError } from './errorHandler';
+import axios from 'axios';
 
 const address = contractAddress.address;
 const abi = contractABI.abi;
@@ -13,6 +14,7 @@ let contract;
 
 const FALLBACK_RPC_URL = "https://polygon-amoy.g.alchemy.com/v2/oUhC0fClZFJKJ09zzWsqj65EFq3X01y0";
 const EXPECTED_CHAIN_ID = 80002; // Polygon Amoy 测试网的 chainId
+const API_BASE_URL = 'http://localhost:8081/api';
 
 // 缓存的 provider 实例
 let cachedProvider = null;
@@ -119,16 +121,12 @@ export async function cancelOrder(orderId) {
 }
 
 export async function getOrders() {
-    if (!contract) await initContract();
-
-    console.log('合约地址:', contract.address);
-
     try {
-        const orders = await contract.getOrders();
-        console.log('获取到的订单:', orders);
-        return orders;
+        const response = await axios.get(`${API_BASE_URL}/orders`);
+        console.log('从后端获取到的订单:', response.data);
+        return response.data;
     } catch (error) {
-        console.error('获取单时出错:', error);
+        console.error('从后端获取订单时出错:', error);
         handleGlobalError(error);
         throw error;
     }

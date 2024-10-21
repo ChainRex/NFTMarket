@@ -2,7 +2,7 @@
   <div class="nft-collections">
     <h2>NFT 系列</h2>
     <el-row v-if="!loading && !error" :gutter="20">
-      <el-col :span="6" v-for="(collection, index) in collections" :key="index">
+      <el-col :span="6" v-for="(collection, index) in sortedCollections" :key="index">
         <el-card :body-style="{ padding: '0px' }" shadow="hover" class="collection-card">
           <router-link :to="`/nft/${collection.address}`" class="collection-link">
             <img :src="collection.imageUrl" class="image" :alt="collection.name">
@@ -41,11 +41,13 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { ElSkeleton, ElSkeletonItem } from 'element-plus';
 import { ethers } from 'ethers';
-import {  getNFTName, getNFTTokenIconURI, getIPFSUrl } from '../utils/nftUtils';
-import { initContract, getOrders } from '../utils/contract';
+import { getIPFSUrl } from '../utils/nftUtils';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8081/api';
 
 export default {
   components: {
@@ -62,53 +64,40 @@ export default {
         loading.value = true;
         error.value = null;
 
-        // 初始化合约
-        await initContract();
-        const rawOrders = await getOrders();
-        
-        if (!rawOrders || !Array.isArray(rawOrders)) {
-          throw new Error('获取到的订单数据无效');
-        }
+        // 获取所有 NFT 集合
+        const allCollectionsResponse = await axios.get(`${API_BASE_URL}/nft`);
+        const allCollections = allCollectionsResponse.data;
 
-        // 对 NFT 地址进行去重
-        const uniqueNFTAddresses = [...new Set(rawOrders.map(order => order.nft))];
+        // 获取所有订单
+        const ordersResponse = await axios.get(`${API_BASE_URL}/orders`);
+        const orders = ordersResponse.data;
 
-        const collectionPromises = uniqueNFTAddresses.map(async (nftAddress) => {
-          try {
-            const [name, tokenIconURI] = await Promise.all([
-              getNFTName(nftAddress),
-              getNFTTokenIconURI(nftAddress)
-            ]);
+        // 处理集合信息
+        const processedCollections = allCollections.map(collection => {
+          const activeOrders = orders.filter(order => 
+            order.NFTContractAddress.toLowerCase() === collection.ContractAddress.toLowerCase() && 
+            order.Status === 0  // 0 表示出售中
+          );
 
-            const imageUrl = getIPFSUrl(tokenIconURI);
-
-            const activeOrders = rawOrders.filter(order => 
-              order.nft === nftAddress && order.status._hex === '0x00'
-            );
-            
-            let floorPrice = null;
-            if (activeOrders.length > 0) {
-              floorPrice = activeOrders.reduce((min, order) => {
-                const price = ethers.BigNumber.from(order.price);
-                return price.lt(min) ? price : min;
-              }, ethers.BigNumber.from(activeOrders[0].price));
-            }
-
-            return {
-              address: nftAddress,
-              name,
-              imageUrl,
-              floorPrice
-            };
-          } catch (error) {
-            console.error('处理 NFT 系列时出错:', error, nftAddress);
-            return null;
+          let floorPrice = null;
+          if (activeOrders.length > 0) {
+            floorPrice = activeOrders.reduce((min, order) => {
+              // 确保 Price 是一个有效的数字字符串
+              const price = order.Price.toString();
+              return ethers.BigNumber.from(price).lt(ethers.BigNumber.from(min)) ? price : min;
+            }, activeOrders[0].Price.toString());
           }
+
+          return {
+            address: collection.ContractAddress,
+            name: collection.Name,
+            imageUrl: getIPFSUrl(collection.TokenIconURI),
+            floorPrice: floorPrice,
+            hasActiveOrders: activeOrders.length > 0
+          };
         });
 
-        const collectionResults = await Promise.all(collectionPromises);
-        collections.value = collectionResults.filter(collection => collection !== null);
-
+        collections.value = processedCollections;
       } catch (err) {
         console.error('获取 NFT 系列失败:', err);
         error.value = '加载 NFT 系列失败，请稍后重试';
@@ -116,6 +105,26 @@ export default {
         loading.value = false;
       }
     };
+
+    const sortedCollections = computed(() => {
+      return [...collections.value].sort((a, b) => {
+        // 首先按是否有活跃订单排序
+        if (a.hasActiveOrders && !b.hasActiveOrders) return -1;
+        if (!a.hasActiveOrders && b.hasActiveOrders) return 1;
+        
+        // 如果都有活跃订单，按地板价排序
+        if (a.floorPrice && b.floorPrice) {
+          return ethers.BigNumber.from(a.floorPrice).lt(ethers.BigNumber.from(b.floorPrice)) ? -1 : 1;
+        }
+        
+        // 如果只有一个有地板价，将有地板价的排在前面
+        if (a.floorPrice && !b.floorPrice) return -1;
+        if (!b.floorPrice && b.floorPrice) return 1;
+        
+        // 如果都没有地板价，按名称字母顺序排序
+        return a.name.localeCompare(b.name);
+      });
+    });
 
     const formatPrice = (price) => {
       if (!price) return '';
@@ -130,7 +139,7 @@ export default {
     onMounted(fetchCollections);
 
     return {
-      collections,
+      sortedCollections,
       formatPrice,
       loading,
       error,

@@ -182,9 +182,11 @@ import { ElMessage } from 'element-plus'
 import { Loading, Wallet, Coin, Money, Plus, Picture } from '@element-plus/icons-vue'
 import WalletConnectModal from './WalletConnectModal.vue'
 import { clearProviderCache } from '../utils/contract'
-import { getNFTName, getNFTTokenIconURI, getIPFSUrl } from '../utils/nftUtils'
+import { getIPFSUrl } from '../utils/nftUtils'
 import { getTokenBalances, getNFTBalances } from '../utils/tokenUtils'
-import { getProvider } from '../utils/contract'
+import axios from 'axios'
+
+const API_BASE_URL = 'http://localhost:8081/api';
 
 export default {
   name: 'NavBar',
@@ -218,6 +220,7 @@ export default {
     const isLoadingNFTs = ref(false)
     const hasRPCError = ref(false)
     const updateInterval = ref(null)
+    const allCollections = ref([])
 
     const mockNFTs = [
       { id: 1, name: 'Bored Ape #1234', collection: 'Bored Ape Yacht Club', image: 'https://ipfs.io/ipfs/QmRRPWG96cmgTn2qSzjwr2qvfNEuhunv6FNeMFGa9bx6mQ' },
@@ -228,6 +231,19 @@ export default {
       return parseFloat(ethers.utils.formatEther(balance.value)).toFixed(4)
     })
 
+    const fetchAllCollections = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/nft`);
+        allCollections.value = response.data.map(collection => ({
+          ...collection,
+          TokenIconURI: getIPFSUrl(collection.TokenIconURI)
+        }));
+      } catch (error) {
+        console.error('获取 NFT 集合失败:', error);
+        ElMessage.error('获取 NFT 集合失败');
+      }
+    };
+
     const handleSearch = async () => {
       if (searchQuery.value.trim() === '') {
         searchResults.value = [];
@@ -236,48 +252,17 @@ export default {
 
       isLoading.value = true;
       try {
-        let provider;
-        try {
-          provider = await getProvider();
-        } catch (error) {
-          console.warn('无法获取 Amoy 网络 provider, 使用默认 provider');
-          provider = new ethers.providers.JsonRpcProvider('https://polygon-amoy.g.alchemy.com/v2/oUhC0fClZFJKJ09zzWsqj65EFq3X01y0');
-        }
-        
-        if (ethers.utils.isAddress(searchQuery.value)) {
-          const name = await getNFTName(searchQuery.value, provider);
-          const iconURI = await getNFTTokenIconURI(searchQuery.value, provider);
-          if (name) {
-            const nftContract = new ethers.Contract(searchQuery.value, ['function totalSupply() view returns (uint256)'], provider);
-            const supply = await nftContract.totalSupply();
-
-            searchResults.value = [{
-              name,
-              iconUrl: getIPFSUrl(iconURI),
-              supply: supply.toString(),
-              address: searchQuery.value
-            }];
-          }
-        } else {
-          // 搜索名称
-          const allNFTs = Object.entries(store.state.nftNames);
-          const matchingNFTs = allNFTs.filter(([, name]) => 
-            name.toLowerCase().includes(searchQuery.value.toLowerCase())
-          );
-          
-          searchResults.value = await Promise.all(matchingNFTs.map(async ([address, name]) => {
-            const iconURI = await getNFTTokenIconURI(address, provider);
-            const nftContract = new ethers.Contract(address, ['function totalSupply() view returns (uint256)'], provider);
-            const supply = await nftContract.totalSupply();
-
-            return {
-              name,
-              iconUrl: getIPFSUrl(iconURI),
-              supply: supply.toString(),
-              address
-            };
-          }));
-        }
+        const query = searchQuery.value.toLowerCase();
+        searchResults.value = allCollections.value.filter(collection => 
+          collection.Name.toLowerCase().includes(query) ||
+          collection.Symbol.toLowerCase().includes(query) ||
+          collection.ContractAddress.toLowerCase().includes(query)
+        ).map(collection => ({
+          name: collection.Name,
+          iconUrl: collection.TokenIconURI,
+          address: collection.ContractAddress,
+          symbol: collection.Symbol
+        }));
       } catch (error) {
         console.error('搜索 NFT 系列失败:', error);
         searchResults.value = [];
@@ -288,7 +273,7 @@ export default {
     };
 
     const handleSelect = (item) => {
-      router.push(`/collection/${item.address}`)
+      router.push(`/nft/${item.address}`)
       searchResults.value = []
       searchQuery.value = ''
     }
@@ -460,19 +445,34 @@ export default {
     const updateNFTBalances = async () => {
       if (isConnected.value && window.ethereum) {
         try {
-          isLoadingNFTs.value = true
-          const provider = new ethers.providers.Web3Provider(window.ethereum)
-          const signer = provider.getSigner()
-          const address = await signer.getAddress()
-          nfts.value = await getNFTBalances(address, provider)
+          isLoadingNFTs.value = true;
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          const signer = provider.getSigner();
+          const address = await signer.getAddress();
+          const rawNFTs = await getNFTBalances(address, provider);
+          
+          // 获取每个 NFT 的图片 URL
+          nfts.value = await Promise.all(rawNFTs.map(async (nft) => {
+            try {
+              const response = await axios.get(`${API_BASE_URL}/nft/${nft.address}/${nft.tokenId}`);
+              const nftData = response.data.nft;
+              return {
+                ...nft,
+                icon: nftData.Image // 使用后端返回的图片 URL
+              };
+            } catch (error) {
+              console.error(`获取 NFT 图片失败: ${nft.address} - ${nft.tokenId}`, error);
+              return nft; // 如果获取失败，保留原始数据
+            }
+          }));
         } catch (error) {
-          console.error('获取 NFT 余额失败:', error)
-          ElMessage.error('获取 NFT 余额失败')
+          console.error('获取 NFT 余额失败:', error);
+          ElMessage.error('获取 NFT 余额失败');
         } finally {
-          isLoadingNFTs.value = false
+          isLoadingNFTs.value = false;
         }
       }
-    }
+    };
 
     watch(isConnected, async (newValue) => {
       if (newValue) {
@@ -570,6 +570,7 @@ export default {
       }
       await updatePOLBalance()
       startUpdateInterval() // 启动定时更新 POL 余额
+      await fetchAllCollections() // 添加这行来获取所有 NFT 集合
     })
 
     onUnmounted(() => {
@@ -685,6 +686,7 @@ export default {
       Picture,
       goToNFTDetail,
       hasRPCError,
+      updateNFTBalances,
     }
   }
 }
@@ -1237,3 +1239,4 @@ export default {
   color: #6c757d;
 }
 </style>
+

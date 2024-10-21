@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -32,4 +33,12 @@ func CallMethod(client *ethclient.Client, contractABI abi.ABI, contractAddress c
 	}
 
 	return m.Outputs.Unpack(result)
+}
+
+func ConvertIPFSToHTTP(uri string) string {
+	if strings.HasPrefix(uri, "ipfs://") {
+		cid := strings.TrimPrefix(uri, "ipfs://")
+		return "https://gateway.pinata.cloud/ipfs/" + cid
+	}
+	return uri
 }

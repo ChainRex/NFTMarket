@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 // NFTCollection 表示NFT系列
 type NFTCollection struct {
 	ID              uint   `gorm:"primaryKey;autoIncrement"`
@@ -39,4 +41,17 @@ type Order struct {
 	Price              string
 	Seller             string `gorm:"index"`
 	Status             uint   // 0: 未售出, 1: 已售出, 2: 已取消
+}
+
+// NFTTransferEvent 表示NFT的转移事件(包括mint和transfer)
+type NFTTransferEvent struct {
+	ID              uint   `gorm:"primaryKey;autoIncrement"`
+	ContractAddress string `gorm:"index:idx_contract_token,priority:1"`
+	TokenID         uint   `gorm:"index:idx_contract_token,priority:2"`
+	EventType       string `gorm:"type:enum('mint','transfer')"`
+	FromAddress     string `gorm:"index"`
+	ToAddress       string `gorm:"index"`
+	TransactionHash string
+	BlockNumber     uint `gorm:"index"`
+	BlockTimestamp  time.Time
 }

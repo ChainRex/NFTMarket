@@ -43,13 +43,15 @@ export default createStore({
         },
     },
     actions: {
-        async fetchOrders({ commit }, { force = false } = {}) {
-            if (this.state.orders.length > 0 && !force) {
-                return this.state.orders;
+        async fetchOrders({ commit }) {
+            try {
+                const orders = await getOrders();
+                commit('setOrders', orders);
+                return orders;
+            } catch (error) {
+                console.error('获取订单失败:', error);
+                throw error;
             }
-            const orders = await getOrders();
-            commit('setOrders', orders);
-            return orders;
         },
         async checkWalletConnection({ commit }) {
             if (typeof window.ethereum !== 'undefined') {
@@ -94,6 +96,21 @@ export default createStore({
             commit('setWalletConnection', false);
             commit('setCurrentUserAddress', '');
             console.log('已在应用中退出登录');
+        },
+    },
+    getters: {
+        getCollectionInfo: (state) => (address) => {
+            return state.nftCollections[address] || { name: '未知集合', iconUrl: '' };
+        },
+        getFloorPrice: (state) => (nftAddress) => {
+            const activeOrders = state.orders.filter(order =>
+                order.NFTContractAddress === nftAddress && order.Status === 1
+            );
+            if (activeOrders.length === 0) return null;
+            return activeOrders.reduce((min, order) => {
+                const price = ethers.BigNumber.from(order.Price);
+                return price.lt(min) ? price : min;
+            }, ethers.BigNumber.from(activeOrders[0].Price));
         },
     },
 });

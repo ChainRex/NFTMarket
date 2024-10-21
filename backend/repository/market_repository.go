@@ -20,12 +20,22 @@ func (r *MarketRepository) GetOrderByID(id uint) (*domain.Order, error) {
 	return &order, err
 }
 
-// 新增函数
+func (r *MarketRepository) GetOrderByNFT(contractAddress string, tokenID uint) (*domain.Order, error) {
+	var order domain.Order
+	err := r.db.Where("nft_contract_address = ? AND token_id = ?", contractAddress, tokenID).Order("id DESC").First(&order).Error
+	return &order, err
+}
+
+func (r *MarketRepository) GetAllOrders() ([]domain.Order, error) {
+	var orders []domain.Order
+	err := r.db.Find(&orders).Error
+	return orders, err
+}
+
 func (r *MarketRepository) ClearOrders() error {
 	return r.db.Exec("TRUNCATE TABLE orders").Error
 }
 
-// 新增函数
 func (r *MarketRepository) BatchInsertOrders(orders []domain.Order) error {
 	return r.db.CreateInBatches(orders, 100).Error
 }

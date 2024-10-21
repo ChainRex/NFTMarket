@@ -26,10 +26,28 @@ func (r *NFTRepository) GetAttributes(nftID uint) ([]domain.NFTAttribute, error)
 	return attributes, err
 }
 
+func (r *NFTRepository) GetAttributeByTokenID(contractAddress string, tokenID uint) (*domain.NFTAttribute, error) {
+	var attribute domain.NFTAttribute
+	err := r.db.Where("contract_address = ? AND token_id = ?", contractAddress, tokenID).First(&attribute).Error
+	return &attribute, err
+}
+
+func (r *NFTRepository) GetAllCollections() ([]domain.NFTCollection, error) {
+	var collections []domain.NFTCollection
+	err := r.db.Find(&collections).Error
+	return collections, err
+}
+
 func (r *NFTRepository) GetCollectionByAddress(contractAddress string) (*domain.NFTCollection, error) {
 	var collection domain.NFTCollection
 	err := r.db.Where("contract_address = ?", contractAddress).First(&collection).Error
 	return &collection, err
+}
+
+func (r *NFTRepository) GetNFTsByCollectionID(collectionID uint) ([]domain.NFT, error) {
+	var nfts []domain.NFT
+	err := r.db.Where("collection_id = ?", collectionID).Find(&nfts).Error
+	return nfts, err
 }
 
 func (r *NFTRepository) SaveCollection(collection *domain.NFTCollection) error {
@@ -83,4 +101,29 @@ func (r *NFTRepository) GetAllNFTs(contractAddress string) ([]domain.NFT, error)
 	var nfts []domain.NFT
 	err := r.db.Where("contract_address = ?", contractAddress).Find(&nfts).Error
 	return nfts, err
+}
+
+// 添加新的方法来处理NFTTransferEvent
+func (r *NFTRepository) SaveNFTTransferEvent(event *domain.NFTTransferEvent) error {
+	return r.db.Create(event).Error
+}
+
+func (r *NFTRepository) GetNFTTransferEvents(contractAddress string, tokenID uint) ([]domain.NFTTransferEvent, error) {
+	var events []domain.NFTTransferEvent
+	err := r.db.Where("contract_address = ? AND token_id = ?", contractAddress, tokenID).
+		Order("block_number ASC").
+		Find(&events).Error
+	return events, err
+}
+
+func (r *NFTRepository) GetLatestNFTTransferEvent(contractAddress string, tokenID uint) (*domain.NFTTransferEvent, error) {
+	var event domain.NFTTransferEvent
+	err := r.db.Where("contract_address = ? AND token_id = ?", contractAddress, tokenID).
+		Order("block_number DESC").
+		First(&event).Error
+	return &event, err
+}
+
+func (r *NFTRepository) ClearNFTTransferEvents() error {
+	return r.db.Exec("TRUNCATE TABLE nft_transfer_events").Error
 }
