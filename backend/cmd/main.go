@@ -61,7 +61,7 @@ func main() {
 	route.SetupRoutes(r, nftController, marketController)
 
 	// 启动服务器
-	if err := r.Run(":8081"); err != nil {
+	if err := r.Run("0.0.0.0:8081"); err != nil {
 		log.Fatalf("无法启动服务器: %v", err)
 	}
 }

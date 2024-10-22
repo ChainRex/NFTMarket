@@ -183,11 +183,6 @@ func (uc *MarketUseCase) handleOrderCreated(event *types.Log) error {
 	price := new(big.Int).SetBytes(data[32:64])
 	seller := common.BytesToAddress(data[64:])
 
-	// 检查并初始化NFT合约
-	if err := uc.nftUC.InitializeNFTCollection(nftAddress.Hex()); err != nil {
-		log.Printf("检查并初始化NFT合约失败: %v", err)
-		// 继续处理订单，不中断流程
-	}
 
 	order := domain.Order{
 		ID:                 uint(orderId + 1),
