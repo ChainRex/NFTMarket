@@ -186,7 +186,7 @@ import { getIPFSUrl } from '../utils/nftUtils'
 import { getTokenBalances, getNFTBalances } from '../utils/tokenUtils'
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://121.196.204.174:8081/api';
 
 export default {
   name: 'NavBar',

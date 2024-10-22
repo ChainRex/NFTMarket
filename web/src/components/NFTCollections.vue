@@ -47,7 +47,7 @@ import { ethers } from 'ethers';
 import { getIPFSUrl } from '../utils/nftUtils';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://121.196.204.174:8081/api';
 
 export default {
   components: {

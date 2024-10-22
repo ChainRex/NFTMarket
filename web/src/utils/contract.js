@@ -14,7 +14,7 @@ let contract;
 
 const FALLBACK_RPC_URL = "https://polygon-amoy.g.alchemy.com/v2/oUhC0fClZFJKJ09zzWsqj65EFq3X01y0";
 const EXPECTED_CHAIN_ID = 80002; // Polygon Amoy 测试网的 chainId
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://121.196.204.174:8081/api';
 
 // 缓存的 provider 实例
 let cachedProvider = null;

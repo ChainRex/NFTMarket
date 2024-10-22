@@ -105,7 +105,7 @@ import { Back, DocumentCopy } from '@element-plus/icons-vue';
 import axios from 'axios';
 import { getTokenInfo } from '../utils/nftUtils'; // 确保导入这个函数
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://121.196.204.174:8081/api';
 
 export default {
   components: {

@@ -144,7 +144,7 @@ import { useStore } from 'vuex'; // 导入 useStore
 import { getNFTName, getNFTTokenIconURI, getIPFSUrl } from '../utils/nftUtils';
 import axios from 'axios'; // 确保导入了 axios
 
-const API_BASE_URL = 'http://localhost:8081/api'; // 添加 API 基础 URL
+const API_BASE_URL = 'http://121.196.204.174:8081/api'; // 添加 API 基础 URL
 
 export default {
   name: 'MintNFT',

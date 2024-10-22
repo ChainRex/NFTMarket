@@ -174,7 +174,7 @@ import { getProvider } from '../utils/contract';
 import { handleGlobalError } from '../utils/errorHandler';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://121.196.204.174:8081/api';
 
 export default {
   components: {
@@ -493,7 +493,7 @@ export default {
     const fetchTransferHistory = async (nftAddress, tokenId) => {
       try {
         historyLoading.value = true;
-        const response = await axios.get(`http://localhost:8081/api/nft/${nftAddress}/${tokenId}/history`);
+        const response = await axios.get(`http://121.196.204.174:8081/api/nft/${nftAddress}/${tokenId}/history`);
         
         transferHistory.value = response.data.map(event => ({
           event: event.EventType === 'mint' ? 'Mint' : 'Transfer',
