@@ -168,7 +168,6 @@ import { ElSkeleton, ElSkeletonItem, ElMessage } from 'element-plus';
 import { getTokenInfo } from '../utils/nftUtils';
 import { cancelOrder as contractCancelOrder, buyNFT as contractBuyNFT, createOrderWithApprove, initContract } from '../utils/contract';
 import NFTMarketAddress from '../contracts/NFTMarket-address.json';
-import NFTABI from '../contracts/NFT.json';
 import { Back, Close, ShoppingCart, Sell, Coin, Right, Loading } from '@element-plus/icons-vue';
 import WalletConnectModal from './WalletConnectModal.vue';
 import { getProvider } from '../utils/contract';

@@ -96,11 +96,20 @@ func (uc *NFTUseCase) GetNFTByTokenID(contractAddress string, tokenID uint) (*do
 		attributes, err := uc.nftRepo.GetAttributes(nft.ID)
 		return nft, attributes, err
 	}
-
-	// 如果数据库中没有找到，尝试初始化单个NFT
-	err = uc.InitializeNFT(contractAddress, tokenID)
+	// 如果数据库中没有找到，先检查NFT系列是否存在
+	_, err = uc.nftRepo.GetCollectionByAddress(contractAddress)
 	if err != nil {
-		return nil, nil, fmt.Errorf("初始化NFT失败: %w", err)
+		// NFT系列不存在，初始化NFT系列
+		err = uc.InitializeNFTCollection(contractAddress)
+		if err != nil {
+			return nil, nil, fmt.Errorf("初始化NFT系列失败: %w", err)
+		}
+	} else {
+		// NFT系列存在，初始化单个NFT
+		err = uc.InitializeNFT(contractAddress, tokenID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("初始化NFT失败: %w", err)
+		}
 	}
 
 	// 再次尝试从数据库获取
